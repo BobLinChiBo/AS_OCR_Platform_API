@@ -22,16 +22,6 @@ FILENAME_PATTERN = re.compile(r'^[A-Za-z0-9_\-\.]+$')  # 僅允許英數、底�
 
 
 
-
-# Modify below if you want to directly download OCR results that already on the platform.
-# In order to get GUIDs, you can browse your uploaded files and check the URLs
-# This step is seperate from uploading files or create a book. You can directly download OCR results without knowing the BOOK_ID or uploading an file.
-EXGUIDS = False # Set to True to download results of your existing GUIDs
-GUIDS = [
-    "1039633",
-    "1039634"
-]
-
 class ASCDCOCRClient:
     def __init__(self, account, password):
         self.account = account
@@ -121,8 +111,15 @@ class ASCDCOCRClient:
         data = self.safe_json(response, "Get Result")
         if data.get("status") == 200:
             return data["result"]
-        print(response.text)
         raise Exception(f"Result error: {data.get('message')}")    
+
+    def get_image(self, guid):
+        url = "https://ocr.ascdc.tw/web_api/get_image.php"
+        response = self.session.post(url, data={"guid": int(guid)})
+        data = self.safe_json(response, "Get Image")
+        if data.get("status") == 200:
+            return data["result"]
+        raise Exception(f"Result error:\n{json.dumps(data, indent=2, ensure_ascii=False)}")   
 
     def upload_file(self, file_name, bookid):
         url = "https://ocr.ascdc.tw/web_api/upload.php"
@@ -246,11 +243,8 @@ class GUID:
         self.client = client
         self.guid = int(guid)
 
-    def fetch_result(self):
-        return self.client.get_result(self.guid)
-
-    def save_to_file(self):
-        result = self.fetch_result()
+    def save_results(self):
+        result = self.client.get_result(self.guid)
         txt_filename = f"{self.guid}.txt"
         with open(txt_filename, 'w', encoding='utf-8') as f:
             for line in result:
@@ -262,19 +256,26 @@ class GUID:
             json.dump(result, f, ensure_ascii=False, indent=2)
         print(f"Saved JSON: {json_filename}")
 
+    def save_image(self):
+        result = self.client.get_image(self.guid)
+        image_filename = f"{self.guid}.jpg"
+        with open(image_filename, 'wb') as f:
+            f.write(result)
+        print(f"Saved text: {image_filename}")
+
 
 # %% [0] Account and Workflow Settings
 # You need to modify these variables to match your account and password
-ACCOUNT = "..."
-PASSWORD = "..."
+ACCOUNT = "...."
+PASSWORD = "...."
 
 # Modify below if you want to upload an file (You must specify a book ID or create a new book to upload an file)
 # Please put your files in the same directory as this script (your working directory)
 UPLOAD_FILE = True
 FILE_LIST = [
-    "example.zip",
-    "example.png",
-    "example.pdf",
+#    "example.zip",
+#    "example.png",
+#    "example.pdf",
     "example.jpg"
 ]
 
@@ -292,6 +293,16 @@ BOOK_TITLE = "Test Title"
 BOOK_AUTHOR = "Test Author"
 BOOK_ID = None # Set to None to create a new book, or specify an existing book ID. To get BOOK_ID, you can browse your created book and check the URL
 
+DOWNLOAD_RESULTS = True  # Set to True to download OCR results
+#DOWNLOAD_IMAGES = False  # Set to True to download OCR images
+
+# Modify below if you want to directly download OCR results that already on the platform.
+# In order to get GUIDs, you can browse your uploaded files and check the URLs
+# This step is seperate from uploading files or create a book. You can directly download OCR results without knowing the BOOK_ID or uploading an file.
+EXGUIDS = False # Set to True to download results of your existing GUIDs
+GUIDS = [
+    "1252989"
+]
 
 
 # ======================================# Main execution flow
@@ -316,12 +327,32 @@ if UPLOAD_FILE and len(FILE_LIST) > 0:
     for file in uploaded_files:
         guids.extend(file.wait_for_ocr())
 
+if EXGUIDS and len(GUIDS) > 0:
+    guids.extend([GUID(client, guid) for guid in GUIDS])
+
 # %% [4] Download OCR results
-if len(guids) == 0:
-    print("No GUIDs to process. Please check your file uploads or GUIDs.")
-else:
-    if len(guids) > 3:
-        client.wait_random(min_sec=30, max_sec=30, label=f"to make sure all GUIDs are ready")   # if there are many GUIDs, wait longer to ensure all results are ready 
-    for guid in guids:
-        client.wait_random(min_sec=1, max_sec=2, label=f"before GUID {guid.guid}")
-        guid.save_to_file()
+if UPLOAD_FILE:
+    client.wait_random(min_sec=10, max_sec=10, label=f"to make sure uploaded files are ready")   # if there are many GUIDs, wait longer to ensure all results are ready 
+
+if DOWNLOAD_RESULTS:
+    if len(guids) == 0:
+        print("No GUIDs to process. Please check your file uploads or GUIDs.")
+    else:
+        if len(guids) > 4 and UPLOAD_FILE:
+            client.wait_random(min_sec=30, max_sec=30, label=f"to make sure all GUIDs are ready")   # if there are many GUIDs, wait longer to ensure all results are ready 
+        for guid in guids:
+            print
+            client.wait_random(min_sec=1, max_sec=2, label=f"before GUID {guid.guid}")
+            guid.save_results()
+
+
+# %% [5] Download images
+# if DOWNLOAD_IMAGES:
+#     if len(guids) == 0:
+#         print("No GUIDs to process. Please check your file uploads or GUIDs.")
+#     else:
+#         if len(guids) > 4 and UPLOAD_FILE:
+#             client.wait_random(min_sec=30, max_sec=30, label=f"to make sure all GUIDs are ready")   # if there are many GUIDs, wait longer to ensure all results are ready 
+#         for guid in guids:
+#             client.wait_random(min_sec=1, max_sec=2, label=f"before GUID {guid.guid}")
+#             guid.save_image()
