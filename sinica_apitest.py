@@ -245,23 +245,25 @@ class GUID:
 
     def save_results(self):
         result = self.client.get_result(self.guid)
-        txt_filename = f"{self.guid}.txt"
+        os.makedirs("downloads", exist_ok=True)
+        txt_filename = os.path.join("downloads", f"{self.guid}.txt")
         with open(txt_filename, 'w', encoding='utf-8') as f:
             for line in result:
                 f.write(line["text"] + "\n")
         print(f"Saved text: {txt_filename}")
 
-        json_filename = f"{self.guid}.json"
+        json_filename = os.path.join("downloads", f"{self.guid}.json")
         with open(json_filename, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         print(f"Saved JSON: {json_filename}")
 
     def save_image(self):
         result = self.client.get_image(self.guid)
-        image_filename = f"{self.guid}.jpg"
+        os.makedirs("downloads", exist_ok=True)
+        image_filename = os.path.join("downloads", f"{self.guid}.jpg")
         with open(image_filename, 'wb') as f:
             f.write(result)
-        print(f"Saved text: {image_filename}")
+        print(f"Saved image: {image_filename}")
 
 
 # %% [0] Account and Workflow Settings
