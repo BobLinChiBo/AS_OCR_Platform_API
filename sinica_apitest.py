@@ -234,25 +234,35 @@ class File:
 
     def wait_for_ocr(self):
         guids_data = self.client.poll_ocr_queue(self.queue_id)
-        self.guids = [GUID(self.client, guid["guid"]) for guid in guids_data]
+        # Pass the original filename to GUID objects
+        base_name = os.path.splitext(os.path.basename(self.file_name))[0]
+        self.guids = [GUID(self.client, guid["guid"], base_name) for guid in guids_data]
         print(f"OCR completed. GUIDs: {[g.guid for g in self.guids]}")
         return self.guids
 
 class GUID:
-    def __init__(self, client, guid):
+    def __init__(self, client, guid, original_filename=None):
         self.client = client
         self.guid = int(guid)
+        self.original_filename = original_filename
 
     def save_results(self):
         result = self.client.get_result(self.guid)
         os.makedirs("downloads", exist_ok=True)
-        txt_filename = os.path.join("downloads", f"{self.guid}.txt")
+        
+        # Use original filename if available, otherwise just GUID
+        if self.original_filename:
+            txt_filename = os.path.join("downloads", f"{self.original_filename}_{self.guid}.txt")
+            json_filename = os.path.join("downloads", f"{self.original_filename}_{self.guid}.json")
+        else:
+            txt_filename = os.path.join("downloads", f"guid_{self.guid}.txt")
+            json_filename = os.path.join("downloads", f"guid_{self.guid}.json")
+            
         with open(txt_filename, 'w', encoding='utf-8') as f:
             for line in result:
                 f.write(line["text"] + "\n")
         print(f"Saved text: {txt_filename}")
 
-        json_filename = os.path.join("downloads", f"{self.guid}.json")
         with open(json_filename, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
         print(f"Saved JSON: {json_filename}")
@@ -260,7 +270,13 @@ class GUID:
     def save_image(self):
         result = self.client.get_image(self.guid)
         os.makedirs("downloads", exist_ok=True)
-        image_filename = os.path.join("downloads", f"{self.guid}.jpg")
+        
+        # Use original filename if available, otherwise just GUID
+        if self.original_filename:
+            image_filename = os.path.join("downloads", f"{self.original_filename}_{self.guid}.jpg")
+        else:
+            image_filename = os.path.join("downloads", f"guid_{self.guid}.jpg")
+            
         with open(image_filename, 'wb') as f:
             f.write(result)
         print(f"Saved image: {image_filename}")
@@ -268,8 +284,6 @@ class GUID:
 
 # %% [0] Account and Workflow Settings
 # You need to modify these variables to match your account and password
-ACCOUNT = "...."
-PASSWORD = "...."
 
 # Modify below if you want to upload an file (You must specify a book ID or create a new book to upload an file)
 # Please put your files in the same directory as this script (your working directory)
@@ -285,14 +299,12 @@ FILE_LIST = [
 # FILE_LIST = [
 #     os.path.join(UPLOAD_FOLDER, f)
 #     for f in os.listdir(UPLOAD_FOLDER)
-#     if os.path.isfile(os.path.join(UPLOAD_FOLDER, f)) and
-#        mimetypes.guess_type(f)[0] in ALLOWED_MIME_TYPES and
-#        FILENAME_PATTERN.match(f)
-# ]
+#         if os.path.isfile(os.path.join(UPLOAD_FOLDER, f)) and
+#         mimetypes.guess_type(f)[0] in ALLOWED_MIME_TYPES and
+#         FILENAME_PATTERN.match(f)
+#     ]
 
 USE_BOOK = True # Set to True to create a new book or to use an existing book ID, False to skip book 
-BOOK_TITLE = "Test Title"
-BOOK_AUTHOR = "Test Author"
 BOOK_ID = None # Set to None to create a new book, or specify an existing book ID. To get BOOK_ID, you can browse your created book and check the URL
 
 DOWNLOAD_RESULTS = True  # Set to True to download OCR results
@@ -322,7 +334,7 @@ uploaded_files = []
 if UPLOAD_FILE and len(FILE_LIST) > 0:
     for path in FILE_LIST:
         name = os.path.basename(path)
-        file = File(client, book.bookid, name)
+        file = File(client, book.bookid, path)
         file.upload()
         uploaded_files.append(file)
         client.wait_random(label=f"uploaded: {name}")
