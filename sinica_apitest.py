@@ -186,7 +186,7 @@ class ASCDCOCRClient:
             with open(TOKEN_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 if time.time() < data.get("expires_at", 0):
-                    print("🔐 Using cached token.")
+                    print("Using cached token.")
                     return data["token"]
         return self.login()
 
@@ -438,7 +438,7 @@ PASSWORD = ""
 
 # Modify below if you want to upload an file (You must specify a book ID or create a new book to upload an file)
 # Please put your files in the same directory as this script (your working directory)
-UPLOAD_FILE = False
+UPLOAD_FILE = True
 #FILE_LIST = [
 #    "a.png"
 #]
@@ -452,9 +452,9 @@ FILE_LIST = [
         FILENAME_PATTERN.match(f)
     ]
 
-USE_BOOK = False # Set to True to create a new book or to use an existing book ID, False to skip book
 BOOK_TITLE = "Vertical_Test"
 BOOK_AUTHOR = "Vertical_Test"
+USE_BOOK = True # Set to True to create a new book or to use an existing book ID, False to skip book
 BOOK_ID = None # Set to None to create a new book, or specify an existing book ID. To get BOOK_ID, you can browse your created book and check the URL
 
 DOWNLOAD_RESULTS = True  # Set to True to download OCR results
@@ -464,7 +464,7 @@ DOWNLOAD_DIR = "downloads"
 # Modify below if you want to directly download OCR results that already on the platform.
 # In order to get GUIDs, you can browse your uploaded files and check the URLs
 # This step is seperate from uploading files or create a book. You can directly download OCR results without knowing the BOOK_ID or uploading an file.
-EXGUIDS = True # Set to True to download results of your existing GUIDs
+EXGUIDS = False # Set to True to download results of your existing GUIDs
 # Option 1: Use a range for consecutive GUIDs
 GUID_START = 1162900
 GUID_END = 1162921  # inclusive
